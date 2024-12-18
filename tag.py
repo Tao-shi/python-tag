@@ -1,10 +1,6 @@
-
 import boto3
 import datetime
 
-aws_id = ''
-aws_key = ''
-region = ''
 key = 'Owner'
 value = 'AWS'
 
@@ -16,13 +12,14 @@ def get_account_id():
 # Return a list of ec2 arns
 def get_ec2_arns():
   ec2_client = boto3.client("ec2")
-  instances = []
+  instances_arn = []
   response = ec2_client.describe_instances()
   for reservation in response.get('Reservations', []):
       for instance in reservation.get('Instances', []):
           arn = f"arn:aws:ec2:{instance['Placement']['AvailabilityZone'][:-1]}:{get_account_id()}:instance/{instance['InstanceId']}"
-          instances.append(arn)
-  return instances
+          instances_arn.append(arn)
+  print(instances_arn)
+  return instances_arn
 
 def get_all_arns():
   tagging_client = boto3.client('resourcegroupstaggingapi')
@@ -49,24 +46,23 @@ def get_all_arns():
         pag_token=response.get('PaginationToken',[])
     else:
       break
+  print(arn_list)
   return arn_list
-
-
-
 
 # Tag Resource based on ARN
 def tag_resources():
   tagging_client = boto3.client('resourcegroupstaggingapi')
+  all_arns = list(set(get_ec2_arns()+get_all_arns()))
+  print(all_arns)
   response = tagging_client.tag_resources(
-        ResourceARNList=get_ec2_arns()+get_all_arns(),
+        ResourceARNList=all_arns,
         Tags={
           key: value
       }
   )
 
-def main():
+def main(): 
   tag_resources()
 
 if __name__ == "__main__":
   main()
-
