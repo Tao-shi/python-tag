@@ -1,87 +1,58 @@
 import boto3
-import datetime
+from datetime import datetime
 
 region = 'us-east-1'
-key = 'Owner'
-value = 'Tao'
+key = 'Key'
+value = 'Test'
 list_keys = [{'key': 'value'}, {'key2': 'value2'}, {'key3': 'value3'}]
+view_arn = 'arn:aws:resource-explorer-2:us-east-1:339712936044:view/all-resources/4045031f-8521-4e19-aa03-c62da348fe7a'
+ec2_filter = 'service:ec2'
+s3_filter = 'service:s3'
+region_filter = 'region:us-east-1'
 
-# Get aAWS Account ID
+# Get AWS Account ID
 def get_account_id():
   sts_client = boto3.client('sts')
   identity = sts_client.get_caller_identity()
   return identity['Account']
 
-# Return a list of ec2 arns
-def get_ec2_arns():
-  ec2_client = boto3.client("ec2")
-  account_id = get_account_id()
-  instances_arn = []
-  
-  try:
-    paginator = ec2_client.get_paginator('describe_instances')
-    for page in paginator.paginate():
-      for reservation in page.get('Reservations', []):
-        for instance in reservation.get('Instances', []):
-          region = instance['Placement']['AvailabilityZone'][:-1]
-          arn = f"arn:aws:ec2:{region}:{account_id}:instance/{instance['InstanceId']}"
-          instances_arn.append(arn)
-    return instances_arn
-  except Exception as e:
-    print(f"Error retrieving EC2 ARNs: {e}")
-    return []      
+# Display timestamp
+def log_message():
+  timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+  return timestamp
 
-# Return a list of all s3 bucket arns
-def get_s3_arns():
-  s3_client = boto3.client('s3')
-  try:
-    response = s3_client.list_buckets()
-    bucket_arns = []
-    
-    # Construct ARNs for each bucket
-    for bucket in response['Buckets']:
-      bucket_name = bucket['Name']
-      bucket_arn = f"arn:aws:s3:::{bucket_name}"
-      bucket_arns.append(bucket_arn)
-    
-    return bucket_arns
-  except Exception as e:
-    print(f"Error retrieving S3 buckets: {e}")
-    return []
 
-# Retrieve ARNs of all taggable resources in the account
-def get_all_arns():
-  tagging_client = boto3.client('resourcegroupstaggingapi')
+def get_all_res_arns(view):
+  client = boto3.client('resource-explorer-2')
   arn_list = []
-  pagination_token = ''
+  next_token = None
+  filters = {'FilterString': s3_filter}
 
   try:
     while True:
-      response = tagging_client.get_resources(
-        PaginationToken=pagination_token,
-        ResourcesPerPage=100
-      )   
-        # Collect ARNs from the current page
-      for taggable in response.get('ResourceTagMappingList', []):
-        arn_list.append(taggable['ResourceARN'])
-          
-        # Check for the next pagination token
-      pagination_token = response.get('PaginationToken', '')
-      if len(pagination_token) < 5 or not pagination_token:  
+      # Build the request parameters
+      params = {'MaxResults': 1000, 'ViewArn': view, 'Filters': filters}
+      if next_token:
+        params['NextToken'] = next_token
+
+      # Fetch resources
+      response = client.list_resources(**params)
+      arn_list.extend(res['Arn'] for res in response.get('Resources', []))
+
+      # Check for next token
+      next_token = response.get('NextToken')
+      if not next_token:
         break
     return arn_list
 
   except Exception as e:
-      print(f"Error retrieving resources: {e}")
-      return []
-
-get_all_arns()
+    print(f"Error retrieving resources: {e}")
+    return [] 
 
 # Tag Resource based on ARN
 def tag_resources():
-  tagging_client = boto3.client('resourcegroupstaggingapi')
-  all_arns = list(dict.fromkeys(get_ec2_arns()+get_all_arns()+get_s3_arns()))
-  print(all_arns)
+  tagging_client = boto3.client('resourcegroupstaggingapi', region_name=region) if region else boto3.client("resourcegroupstaggingapi")
+  all_arns = list(dict.fromkeys(get_all_res_arns(view_arn)))
   for arn in all_arns:
     try:
       response = tagging_client.tag_resources(
@@ -90,13 +61,12 @@ def tag_resources():
           key: value 
             }
         )
-      print(f"Successfully tagged: {arn}")
+      print(f"{log_message()} -- Successfully tagged: {arn}")
     except Exception as e:
-      print(f"Failed to tag {arn}. Error: {e}")
+      print(f"{log_message()} -- Failed to tag {arn}. Error: {e}")
 
 def main(): 
   tag_resources()
 
 if __name__ == "__main__":
   main()
-
