@@ -4,7 +4,6 @@ from datetime import datetime
 region = 'us-east-1'
 key = 'Key'
 value = 'Test'
-list_keys = [{'key': 'value'}, {'key2': 'value2'}, {'key3': 'value3'}]
 view_arn = 'arn:aws:resource-explorer-2:us-east-1:339712936044:view/all-resources/4045031f-8521-4e19-aa03-c62da348fe7a'
 ec2_filter = 'service:ec2'
 s3_filter = 'service:s3'
@@ -25,7 +24,7 @@ def get_all_res_arns(view):
   client = boto3.client('resource-explorer-2')
   arn_list = []
   next_token = None
-  filters = {'FilterString': ec2_filter+' '+region_filter}
+  filters = {'FilterString': s3_filter+' '+region_filter}
 
   try:
     while True:
@@ -62,7 +61,7 @@ def tag_resources():
         response = tagging_client.tag_resources(
           ResourceARNList=[arn],
           Tags={
-            key: value 
+            key:value,
               }
           )
         print(f"{log_message()} -- Successfully tagged: {arn}")
