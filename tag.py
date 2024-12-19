@@ -1,6 +1,8 @@
 import boto3
 from datetime import datetime
 
+print(boto3.__version__)
+
 region = 'us-east-1'
 key = 'Key'
 value = 'Test'
