@@ -9,6 +9,7 @@ def get_account_id():
     identity = sts_client.get_caller_identity()
     return identity['Account']
 
+
 # Return a list of ec2 arns
 def get_ec2_arns():
   ec2_client = boto3.client("ec2")
