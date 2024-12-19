@@ -25,7 +25,7 @@ def get_all_res_arns(view):
   client = boto3.client('resource-explorer-2')
   arn_list = []
   next_token = None
-  filters = {'FilterString': s3_filter}
+  filters = {'FilterString': ec2_filter+' '+region_filter}
 
   try:
     while True:
@@ -52,17 +52,22 @@ def get_all_res_arns(view):
 def tag_resources():
   tagging_client = boto3.client('resourcegroupstaggingapi', region_name=region) if region else boto3.client("resourcegroupstaggingapi")
   all_arns = list(dict.fromkeys(get_all_res_arns(view_arn)))
-  for arn in all_arns:
-    try:
-      response = tagging_client.tag_resources(
-        ResourceARNList=[arn],
-        Tags={
-          key: value 
-            }
-        )
-      print(f"{log_message()} -- Successfully tagged: {arn}")
-    except Exception as e:
-      print(f"{log_message()} -- Failed to tag {arn}. Error: {e}")
+
+  if len(all_arns) == 0:
+    print("No resources found!")
+    return
+  else:
+    for arn in all_arns:
+      try:
+        response = tagging_client.tag_resources(
+          ResourceARNList=[arn],
+          Tags={
+            key: value 
+              }
+          )
+        print(f"{log_message()} -- Successfully tagged: {arn}")
+      except Exception as e:
+        print(f"{log_message()} -- Failed to tag {arn}. Error: {e}")
 
 def main(): 
   tag_resources()
