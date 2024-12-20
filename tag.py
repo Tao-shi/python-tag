@@ -24,12 +24,13 @@ def get_all_res_arns(view):
   client = boto3.client('resource-explorer-2')
   arn_list = []
   next_token = None
-  filters = {'FilterString': s3_filter+' '+region_filter}
+  filters = {'FilterString': region_filter+' '+ec2_filter}
+  # filters = None
 
   try:
     while True:
       # Build the request parameters
-      params = {'MaxResults': 1000, 'ViewArn': view, 'Filters': filters}
+      params = {'MaxResults': 1000, 'ViewArn': view, 'Filters': filters} if filters else {'MaxResults': 1000, 'ViewArn': view}
       if next_token:
         params['NextToken'] = next_token
 
